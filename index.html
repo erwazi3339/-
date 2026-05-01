@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>今日簽到</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+  /* ── Reset & Base ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans TC", sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.08);
+    max-width: 420px;
+    width: 100%;
+    padding: 40px 28px 32px;
+    text-align: center;
+    position: relative;
+  }
+
+  /* ── Header ── */
+  .badge {
+    display: inline-block;
+    background: #06c755;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 14px;
+    border-radius: 20px;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+  }
+  h1 { font-size: 26px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+  .date { font-size: 14px; color: #999; margin-bottom: 28px; }
+
+  /* ── QR Code ── */
+  .qr-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+  #qrcode {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #qrcode img, #qrcode canvas { border-radius: 12px; max-width: 200px; height: auto; }
+  .qr-placeholder {
+    width: 200px; height: 200px;
+    background: #f7f8fa;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #bbb;
+    font-size: 14px;
+  }
+
+  /* ── Button ── */
+  .btn-line {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 16px;
+    background: #06c755;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background .15s, transform .1s;
+    margin-bottom: 20px;
+  }
+  .btn-line:hover { background: #05b54b; }
+  .btn-line:active { transform: scale(.97); }
+  .btn-line svg { width: 24px; height: 24px; flex-shrink: 0; }
+
+  .hint { font-size: 13px; color: #aaa; margin-bottom: 6px; }
+
+  /* ── Footer ── */
+  .footer {
+    font-size: 11px;
+    color: #ccc;
+    margin-top: 20px;
+    border-top: 1px solid #f0f0f0;
+    padding-top: 16px;
+  }
+
+  /* ── Admin Toggle ── */
+  .admin-toggle {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: none;
+    border: none;
+    color: #ddd;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: color .15s, background .15s;
+  }
+  .admin-toggle:hover { color: #666; background: #f5f5f5; }
+
+  /* ── Admin Panel ── */
+  .admin-panel {
+    display: none;
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 2px dashed #eee;
+    text-align: left;
+  }
+  .admin-panel.show { display: block; }
+
+  .admin-panel h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+  .admin-panel label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 4px;
+  }
+  .admin-panel input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 10px;
+    font-size: 14px;
+    margin-bottom: 14px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .admin-panel input:focus { border-color: #06c755; }
+
+  .admin-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .admin-actions button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .admin-actions button:active { opacity: .7; }
+  .btn-save { background: #06c755; color: #fff; }
+  .btn-reset { background: #eee; color: #666; }
+
+  .admin-panel .preview-label {
+    font-size: 12px;
+    color: #999;
+    margin-top: 4px;
+    margin-bottom: 0;
+  }
+  .admin-panel .preview-label span { color: #06c755; word-break: break-all; }
+
+  .toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,.75);
+    color: #fff;
+    padding: 12px 28px;
+    border-radius: 12px;
+    font-size: 15px;
+    opacity: 0;
+    transition: opacity .25s;
+    pointer-events: none;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; }
+
+  @media (max-width: 440px) {
+    .card { padding: 28px 18px 24px; }
+    h1 { font-size: 22px; }
+    .btn-line { font-size: 16px; padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="card" id="app">
+  <!-- Admin toggle (tap 5 times to enter admin mode) -->
+  <button class="admin-toggle" id="adminToggle" onclick="toggleAdmin()">⚙️</button>
+
+  <div class="badge">✅ LINE 簽到</div>
+  <h1>今日簽到</h1>
+  <div class="date" id="todayDate"></div>
+
+  <!-- QR Code -->
+  <div class="qr-wrap">
+    <div id="qrcode"><div class="qr-placeholder">載入中⋯</div></div>
+  </div>
+
+  <!-- LINE Button -->
+  <a class="btn-line" id="lineBtn" href="#" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.77 11.06c0 3.65-3.48 6.62-7.77 6.62-.98 0-1.92-.13-2.78-.37-.3-.1-.56-.04-.76.14l-1.28 1.12c-.24.2-.57.06-.52-.32l.4-2.05c.05-.24-.03-.47-.2-.64-1.25-1.13-2.04-2.65-2.04-4.34 0-3.65 3.48-6.62 7.77-6.62s7.78 2.97 7.78 6.62z"/></svg>
+    點擊加入 LINE 簽到
+  </a>
+  <div class="hint">或掃描上方 QR Code 加入</div>
+
+  <div class="footer">每日簽到 · 完成即獲簽到資格</div>
+
+  <!-- Admin Panel -->
+  <div class="admin-panel" id="adminPanel">
+    <h3>⚙️ 管理設定</h3>
+
+    <label for="adminLink">LINE 邀請連結</label>
+    <input type="url" id="adminLink" placeholder="https://line.me/ti/g/xxxxxx">
+
+    <label for="adminQr">QR Code 圖片網址（選填）</label>
+    <input type="url" id="adminQr" placeholder="留空則自動生成 QR Code">
+    <div class="preview-label">預覽：<span id="adminLinkPreview">（無）</span></div>
+
+    <div class="admin-actions">
+      <button class="btn-save" onclick="adminSave()">✅ 套用</button>
+      <button class="btn-reset" onclick="adminReset()">↻ 重置</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Defaults ──
+  const STORAGE_KEY = 'line_checkin_config';
+
+  // ── Init ──
+  document.addEventListener('DOMContentLoaded', () => {
+    // Show today's date
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const weekdays = ['日','一','二','三','四','五','六'];
+    document.getElementById('todayDate').textContent = `${y} 年 ${m} 月 ${d} 日 星期${weekdays[now.getDay()]}`;
+
+    // Load config (priority: URL params > localStorage > defaults)
+    applyConfig();
+
+    // If URL has #admin, show admin panel
+    if (window.location.hash === '#admin') {
+      document.getElementById('adminPanel').classList.add('show');
+    }
+  });
+
+  function getDefaultLink() {
+    return 'https://line.me/ti/p/~zzzd778';
+  }
+
+  function getConfig() {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    const defaults = { link: getDefaultLink(), qr: '' };
+
+    // URL params override everything
+    const params = new URLSearchParams(window.location.search);
+    const link = params.get('link') || (stored ? JSON.parse(stored).link : '') || defaults.link;
+    const qr = params.get('qr') || (stored ? JSON.parse(stored).qr : '') || defaults.qr;
+
+    return { link, qr };
+  }
+
+  function applyConfig() {
+    const config = getConfig();
+    const { link, qr } = config;
+
+    // Update button
+    const btn = document.getElementById('lineBtn');
+    btn.href = link || '#';
+    btn.style.opacity = link ? '1' : '.5';
+
+    // Update admin panel inputs
+    document.getElementById('adminLink').value = link;
+    document.getElementById('adminQr').value = qr;
+    document.getElementById('adminLinkPreview').textContent = link || '（未設定）';
+
+    // Generate QR
+    const qrContainer = document.getElementById('qrcode');
+    qrContainer.innerHTML = '';
+
+    if (qr) {
+      // Custom QR image
+      const img = document.createElement('img');
+      img.src = qr;
+      img.alt = 'LINE QR Code';
+      img.style.maxWidth = '200px';
+      img.style.borderRadius = '12px';
+      qrContainer.appendChild(img);
+    } else if (link) {
+      // Auto-generate QR from link
+      new QRCode(qrContainer, {
+        text: link,
+        width: 200,
+        height: 200,
+        colorDark: '#1a1a2e',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    } else {
+      qrContainer.innerHTML = '<div class="qr-placeholder">請先設定 LINE 連結</div>';
+    }
+  }
+
+  // ── Admin ──
+  function toggleAdmin() {
+    const panel = document.getElementById('adminPanel');
+    panel.classList.toggle('show');
+    // Update hash
+    if (panel.classList.contains('show')) {
+      history.replaceState(null, '', '#admin');
+    } else {
+      history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+  }
+
+  function adminSave() {
+    const link = document.getElementById('adminLink').value.trim();
+    const qr = document.getElementById('adminQr').value.trim();
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ link, qr }));
+
+    // If there are URL params, clear them to use the new saved values
+    const url = new URL(window.location);
+    url.search = '';
+    url.hash = '';
+    history.replaceState(null, '', url.toString());
+
+    applyConfig();
+    showToast('✅ 設定已套用！');
+  }
+
+  function adminReset() {
+    localStorage.removeItem(STORAGE_KEY);
+    document.getElementById('adminLink').value = '';
+    document.getElementById('adminQr').value = '';
+    // Clear URL params too
+    const url = new URL(window.location);
+    url.search = '';
+    url.hash = '';
+    history.replaceState(null, '', url.toString());
+    applyConfig();
+    showToast('↻ 已重置為預設');
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1800);
+  }
+</script>
+
+</body>
+</html>
